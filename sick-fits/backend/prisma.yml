@@ -1,0 +1,11 @@
+endpoint: https://us1.prisma.sh/daniel-sousa-39aa59/danielfsdemo/dev
+datamodel: datamodel.prisma
+secret: ${env:PRISMA_SECRET}
+hooks:
+  post-deploy:
+      - graphql get-schema -p prisma
+
+generate:
+  - generator: javascript-client
+    output: ./generated/prisma-client/
+
