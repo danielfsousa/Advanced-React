@@ -2,10 +2,12 @@
 
 type Query {
   items: [Item!]!
+  item(where: ItemWhereUniqueInput!): Item
 }
 
 type Mutation {
-  createItem(input: ItemCreateInput): Item!
+  createItem(data: ItemCreateInput!): Item!
+  updateItem(data: ItemUpdateInput! where: ItemWhereUniqueInput!): Item
 }
 
 input ItemCreateInput {

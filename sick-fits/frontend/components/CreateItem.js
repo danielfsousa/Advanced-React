@@ -1,3 +1,5 @@
+/* global fetch, FormData */
+
 import React, { Component } from 'react'
 import Router from 'next/router'
 import { Mutation } from 'react-apollo'
@@ -6,8 +8,8 @@ import Form from './styles/Form'
 import Error from './ErrorMessage'
 
 const CREATE_ITEM_MUTATION = gql`
-  mutation CREATE_ITEM_MUTATION($input: ItemCreateInput!) {
-    createItem(input: $input) {
+  mutation CREATE_ITEM_MUTATION($data: ItemCreateInput!) {
+    createItem(data: $data) {
       id
     }
   }
@@ -17,14 +19,14 @@ export default class CreateItem extends Component {
   state = {
     title: 'Cool shoes',
     description: 'I love those shoes',
-    image: 'dog.jpg',
-    largeImage: 'large-dog.jpg',
+    image: '',
+    largeImage: '',
     price: 1000
   }
 
-  handleFormSubmit = createItem => async (e) => {
+  handleFormSubmit = createItemMutation => async e => {
     e.preventDefault()
-    const res = await createItem()
+    const res = await createItemMutation()
     console.log(res)
     Router.push({
       pathname: '/item',
@@ -32,19 +34,62 @@ export default class CreateItem extends Component {
     })
   }
 
-  handleChange = e => {
-    const { name, type, value } = e.target
+  handleChange = evt => {
+    const { name, type, value } = evt.target
     const val = type === 'number' ? Number(value) : value
     this.setState({ [name]: val })
   }
 
+  uploadFile = async evt => {
+    const files = evt.target.files
+    const data = new FormData()
+    data.append('file', files[0])
+    data.append('upload_preset', 'weirdshop')
+
+    const res = await fetch(
+      'https://api.cloudinary.com/v1_1/danielfsosua/image/upload',
+      {
+        method: 'POST',
+        body: data
+      }
+    )
+
+    const file = await res.json()
+
+    this.setState({
+      image: file.secure_url,
+      largeImage: file.eager[0].secure_url
+    })
+  }
+
   render () {
     return (
-      <Mutation mutation={CREATE_ITEM_MUTATION} variables={{ input: this.state }}>
+      <Mutation
+        mutation={CREATE_ITEM_MUTATION}
+        variables={{ data: this.state }}
+      >
         {(createItem, { loading, error }) => (
           <Form onSubmit={this.handleFormSubmit(createItem)}>
             <Error error={error} />
             <fieldset disabled={loading} aria-busy={loading}>
+              <label htmlFor='file'>
+                Image
+                <input
+                  type='file'
+                  id='file'
+                  name='file'
+                  placeholder='Upload an image'
+                  required
+                  onChange={this.uploadFile}
+                />
+                {this.state.image && (
+                  <img
+                    src={this.state.image}
+                    width='200'
+                    alt='Upload Preview'
+                  />
+                )}
+              </label>
               <label htmlFor='title'>
                 Title
                 <input
