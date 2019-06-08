@@ -1,13 +1,32 @@
 # import * from './generated/prisma.graphql'
 
 type Query {
-  items: [Item!]!
+  me: User
+  items(where: ItemWhereInput, orderBy: ItemOrderByInput, skip: Int, first: Int): [Item!]!
   item(where: ItemWhereUniqueInput!): Item
+  itemsConnection(where: ItemWhereInput): ItemConnection!
 }
 
 type Mutation {
   createItem(data: ItemCreateInput!): Item!
-  updateItem(data: ItemUpdateInput! where: ItemWhereUniqueInput!): Item
+  updateItem(data: ItemUpdateInput!, where: ItemWhereUniqueInput!): Item
+  deleteItem(id: ID!): Item
+  signup(email: String!, password: String!, name: String!): User!
+  signin(email: String!, password: String!): User!
+  signout: SuccessMessage
+  requestReset(email: String!): SuccessMessage
+  resetPassword(resetToken: String!, password: String!, confirmPassword: String!): User!
+}
+
+type User {
+  id: ID!
+  name: String!
+  email: String!
+  permissions: [Permission!]!
+}
+
+type SuccessMessage {
+  message: String
 }
 
 input ItemCreateInput {
@@ -16,4 +35,13 @@ input ItemCreateInput {
   price: Int!
   image: String
   largeImage: String
+}
+
+enum Permission {
+  ADMIN
+  USER
+  ITEM_CREATE
+  ITEM_UPDATE
+  ITEM_DELETE
+  PERMISSION_UPDATE
 }
