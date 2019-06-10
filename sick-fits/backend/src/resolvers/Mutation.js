@@ -9,9 +9,18 @@ const { FRONTEND_URL, APP_SECRET } = process.env
 
 const mutations = {
   async createItem (parent, args, ctx, info) {
+    if (!ctx.request.userId) {
+      throw new Error('You must be logged to do that')
+    }
+
     const item = await ctx.db.mutation.createItem({
       data: {
-        ...args.data
+        ...args.data,
+        user: {
+          connect: {
+            id: ctx.request.userId
+          }
+        }
       }
     }, info)
 
@@ -87,14 +96,14 @@ const mutations = {
 
     const resetToken = (await randomBytesAsync(20)).toString('hex')
     const resetTokenExpiry = Date.now() + 3600000 // 1h from now
-    const res = await ctx.db.mutation.updateUser({
+    await ctx.db.mutation.updateUser({
       where: { email: args.email },
       data: { resetToken, resetTokenExpiry }
     })
 
     const resetUrl = `${FRONTEND_URL}/reset?resetToken=${resetToken}`
 
-    const mailRes = await transport.sendMail({
+    await transport.sendMail({
       from: 'wes@wesbos.com',
       to: user.email,
       subject: 'Your password reset token',
