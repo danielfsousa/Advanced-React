@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const { forwardTo } = require('prisma-binding')
 const { transport, makeANiceEmail } = require('../mail')
+const { hasPermission } = require('../utils')
 const randomBytesAsync = promisify(randomBytes)
 const { FRONTEND_URL, APP_SECRET } = process.env
 
@@ -13,16 +14,19 @@ const mutations = {
       throw new Error('You must be logged to do that')
     }
 
-    const item = await ctx.db.mutation.createItem({
-      data: {
-        ...args.data,
-        user: {
-          connect: {
-            id: ctx.request.userId
+    const item = await ctx.db.mutation.createItem(
+      {
+        data: {
+          ...args.data,
+          user: {
+            connect: {
+              id: ctx.request.userId
+            }
           }
         }
-      }
-    }, info)
+      },
+      info
+    )
 
     return item
   },
@@ -31,22 +35,32 @@ const mutations = {
 
   async deleteItem (parent, args, ctx, info) {
     const where = { id: args.id }
-    const item = await ctx.db.query.item({ where }, '{ id title }')
-    console.log(item)
+    const item = await ctx.db.query.item({ where }, '{ id title user { id } }')
+    const ownsItem = item.user.id === ctx.request.userId
+    const hasPermissions = ctx.request.user.permissions.some(p =>
+      ['ADMIN', 'ITEM_DELETE'].includes(p)
+    )
+
+    if (!ownsItem && !hasPermissions) {
+      throw new Error('You dont have permission to do that')
+    }
     return ctx.db.mutation.deleteItem({ where }, info)
   },
 
   async signup (parent, args, ctx, info) {
     const email = args.email.toLowerCase()
     const password = await bcrypt.hash(args.password, 10)
-    const user = await ctx.db.mutation.createUser({
-      data: {
-        ...args,
-        email,
-        password,
-        permissions: { set: ['USER'] }
-      }
-    }, info)
+    const user = await ctx.db.mutation.createUser(
+      {
+        data: {
+          ...args,
+          email,
+          password,
+          permissions: { set: ['USER'] }
+        }
+      },
+      info
+    )
 
     const token = jwt.sign({ userId: user.id }, APP_SECRET)
     ctx.response.cookie('token', token, {
@@ -145,6 +159,26 @@ const mutations = {
     })
 
     return updatedUser
+  },
+
+  async updatePermissions (parent, args, ctx, info) {
+    if (!ctx.request.userId) {
+      throw new Error('You must be logged in')
+    }
+
+    const currentUser = await ctx.db.query.user(
+      { where: { id: ctx.request.userId } },
+      info
+    )
+    hasPermission(currentUser, ['ADMIN', 'PERMISSION_UPDATE'])
+
+    return ctx.db.mutation.updateUser(
+      {
+        data: { permissions: { set: args.permissions } },
+        where: { id: args.userId }
+      },
+      info
+    )
   }
 }
 

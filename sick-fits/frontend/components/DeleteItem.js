@@ -14,7 +14,7 @@ const DELETE_ITEM_MUTATION = gql`
 class DeleteItem extends Component {
   handleItemDelete = deleteItem => () => {
     if (global.confirm('Are you sure you want to delete this item?')) {
-      deleteItem()
+      deleteItem().catch(e => global.alert(e.message))
     }
   }
 
